@@ -1,5 +1,6 @@
 import cv2
 import os
+import numpy as np
 
 # Aktuelles Verzeichnis
 project_dir = os.path.dirname(os.path.abspath(__file__))
@@ -19,9 +20,9 @@ def edit_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Kontrast erhöhen
-    edited = cv2.equalizeHist(gray)
+    # edited_img = cv2.equalizeHist(gray)
 
-    return edited
+    return gray
 
 # Bilder bearbeiten und speichern
 for filename in os.listdir(input_folder):
@@ -35,3 +36,11 @@ for filename in os.listdir(input_folder):
         edited_img_path = os.path.join(output_folder, filename)
 
         cv2.imwrite(edited_img_path, edited_img)
+
+
+
+# Schachbrettgröße (innere Ecken)
+chessboard_size = (8, 4)
+
+# Größe eines Quadrats in Millimetern
+square_size = 28.77
