@@ -60,8 +60,12 @@ objp = objp * square_size
 
 # 3D Punkte in der realen Welt
 obj_points = []
+
 # 2D Punkte in den Bildern
 img_points = [] 
+
+# Liste um Namen zu spechen für RMS (Bild <-> RMS Zuweisung)
+image_files = []
 
 # Punktsuche
 for filename in os.listdir(output_folder):
@@ -87,6 +91,9 @@ for filename in os.listdir(output_folder):
             corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
             img_points.append(corners2)
 
+            # Bild in Namensliste hinzufügen (für RMS Ermittlung)
+            image_files.append(filename)
+
             # Einzeichnen der Ecken
             cv2.drawChessboardCorners(img, chessboard_size, corners2, ret)
 
@@ -104,7 +111,8 @@ cv2.destroyAllWindows()
 ret, cam_matrix, distortion_coeff, rotation_vectors, translation_vectors = cv2.calibrateCamera(obj_points, img_points, gray.shape[::-1], None, None)
 
 # Ausgabe Kalibrierungsergebnisse
-print("Kalibrierung abgeschlossen:")
+print("Kalibrierung wurde abgeschlossen!")
+
 print("Erfolgsrate (RMS-Fehler):", ret)
 
 print("Kameramatrix:")
@@ -118,3 +126,52 @@ print(rotation_vectors)
 
 print("Translationsvektoren:")
 print(translation_vectors)
+
+# Reprojection-Error berechnen
+#mean_error = 0
+
+#for i in range(len(obj_points)):
+#    img_points2, _ = cv2.projectPoints(obj_points[i], rotation_vectors[i], translation_vectors[i], cam_matrix, distortion_coeff)
+
+#    error = cv2.norm(img_points[i], img_points2, cv2.NORM_L2) / len(img_points2)
+
+#    mean_error += error
+
+#print("Gesamter Reprojection-Error: {}".format(mean_error / len(obj_points)))
+
+
+# Reprojection-Error für jedes Bild berechnen und anzeigen
+mean_error = 0
+
+# Liste für Fehler je Bild
+errors_per_image = []
+
+for i in range(len(obj_points)):
+
+    img_points2, _ = cv2.projectPoints(obj_points[i], rotation_vectors[i], translation_vectors[i], cam_matrix, distortion_coeff)
+
+    error = cv2.norm(img_points[i], img_points2, cv2.NORM_L2) / len(img_points2)
+    mean_error += error
+
+    errors_per_image.append((image_files[i], error))
+
+# Durchschnittlichen Reprojection-Error berechnen
+mean_error /= len(obj_points)
+
+# Ergebnisse anzeigen
+print("Gesamter Reprojection-Error: {}".format(mean_error))
+
+for filename, error in errors_per_image:
+    print(f"Reprojection-Error für {filename}: {error}")
+
+# Bilder mit höchsten Reprojection-Errors finden
+def get_img_error(img):
+    return img[1]
+
+errors_per_image.sort(key=get_img_error, reverse=True)
+
+# Top 5 Bilder mit den höchsten Fehlern
+print("\nBilder mit den höchsten Fehlern:")
+
+for filename, error in errors_per_image[:5]: 
+    print(f"{filename}: {error}")
