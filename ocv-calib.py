@@ -6,12 +6,12 @@ import numpy as np
 project_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Pfade der Bilder
-input_folder = os.path.join(project_dir, 'imgs')
-output_folder = os.path.join(project_dir, 'imgs_edited')
+in_folder = os.path.join(project_dir, 'imgs')
+out_folder = os.path.join(project_dir, 'imgs_edited')
 
 # Output-Folder erstellen (falls nicht vorhanden)
-if not os.path.exists(output_folder):
-    os.makedirs(output_folder)
+if not os.path.exists(out_folder):
+    os.makedirs(out_folder)
 
 # Bearbeiten der Bilder
 def better_img_edit(img):
@@ -25,15 +25,15 @@ def better_img_edit(img):
     return gray
 
 # Bilder bearbeiten und speichern
-for filename in os.listdir(input_folder):
+for fname in os.listdir(in_folder):
 
-    if filename.endswith(".jpg"):
+    if fname.endswith(".jpg"):
 
-        img_path = os.path.join(input_folder, filename)
+        img_path = os.path.join(in_folder, fname)
         img = cv2.imread(img_path)
 
         edited_img = better_img_edit(img)
-        edited_img_path = os.path.join(output_folder, filename)
+        edited_img_path = os.path.join(out_folder, fname)
 
         cv2.imwrite(edited_img_path, edited_img)
 
@@ -49,11 +49,12 @@ square_size = 28.77
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 # 3D Punkte in der realen Welt
-objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
+# (Array 3D Punkte welche die Position der Schachbrettecken in der echten Welt darstellen. 32 Punkte mit Z null.)
+obj_point = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+obj_point[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
 
 # Skalierung der 3D Punkte mit der tatsächlichen Größe der Quadrate
-objp = objp * square_size
+obj_point = obj_point * square_size
 
 # Arrays für die Speicherung der 3D Punkte und der 2D Bildpunkte für alle  eingelesenen Bilder
 # dh. die Position der Schachbrettecken in der realen Welt (z.B. 0,0,0; 1,0,0; 2,0,0; ..., 7,3,0)
@@ -65,19 +66,19 @@ obj_points = []
 img_points = [] 
 
 # Liste um Namen zu spechen für RMS (Bild <-> RMS Zuweisung)
-image_files = []
+img_names = []
 
-# Punktsuche
-for filename in os.listdir(output_folder):
+# Punktsuche (aus dem editierten Bilder-Ordner)
+for fname in os.listdir(out_folder):
 
-    if filename.endswith(".jpg"):
+    if fname.endswith(".jpg"):
 
-        img_path = os.path.join(output_folder, filename)
+        img_path = os.path.join(out_folder, fname)
 
         # Einlesen des Bilds
         img = cv2.imread(img_path)
 
-        print(f"Eingelesenes Bild: {filename}")
+        print(f"Eingelesenes Bild: {fname}")
 
         # Präventiv, passiert aber in der Edit-Funktion bereits
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -87,12 +88,12 @@ for filename in os.listdir(output_folder):
 
         # Wenn Ecken gefunden wurden -> Objektpunkte und Bildpunkte speichern
         if ret:
-            obj_points.append(objp)
+            obj_points.append(obj_point)
             corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
             img_points.append(corners2)
 
             # Bild in Namensliste hinzufügen (für RMS Ermittlung)
-            image_files.append(filename)
+            img_names.append(fname)
 
             # Einzeichnen der Ecken
             cv2.drawChessboardCorners(img, chessboard_size, corners2, ret)
@@ -153,7 +154,7 @@ for i in range(len(obj_points)):
     error = cv2.norm(img_points[i], img_points2, cv2.NORM_L2) / len(img_points2)
     mean_error += error
 
-    errors_per_image.append((image_files[i], error))
+    errors_per_image.append((img_names[i], error))
 
 # Durchschnittlichen Reprojection-Error berechnen
 mean_error /= len(obj_points)
@@ -161,8 +162,8 @@ mean_error /= len(obj_points)
 # Ergebnisse anzeigen
 print("Gesamter Reprojection-Error: {}".format(mean_error))
 
-for filename, error in errors_per_image:
-    print(f"Reprojection-Error für {filename}: {error}")
+for fname, error in errors_per_image:
+    print(f"Reprojection-Error für {fname}: {error}")
 
 # Bilder mit höchsten Reprojection-Errors finden
 def get_img_error(img):
@@ -170,8 +171,8 @@ def get_img_error(img):
 
 errors_per_image.sort(key=get_img_error, reverse=True)
 
-# Top 5 Bilder mit den höchsten Fehlern
-print("\nBilder mit den höchsten Fehlern:")
+# Top 5 Bilder mit den höchsten Reprojection-Error
+print("\nBilder mit den höchsten Reprojection-Error (sortiert):")
 
-for filename, error in errors_per_image[:5]: 
-    print(f"{filename}: {error}")
+for fname, error in errors_per_image[:5]: 
+    print(f"{fname}: {error}")
