@@ -44,3 +44,51 @@ chessboard_size = (8, 4)
 
 # Größe eines Quadrats in Millimetern
 square_size = 28.77
+
+# Kriterien für die Ecksuche
+criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+
+# 3D Punkte in der realen Welt
+objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
+
+# Skalierung der 3D Punkte mit der tatsächlichen Größe der Quadrate
+objp = objp * square_size
+
+# Arrays für die Speicherung der 3D Punkte und der 2D Bildpunkte für alle  eingelesenen Bilder
+# dh. die Position der Schachbrettecken in der realen Welt (z.B. 0,0,0; 1,0,0; 2,0,0; ..., 7,3,0)
+# 3D Punkte in der realen Welt
+obj_points = []
+# 2D Punkte in den Bildern
+img_points = [] 
+
+# Punktsuche
+for filename in os.listdir(output_folder):
+
+    if filename.endswith(".jpg"):
+
+        img_path = os.path.join(output_folder, filename)
+
+        # Einlesen des Bilds
+        img = cv2.imread(img_path)
+
+        # Präventiv, passiert aber in der Edit-Funktion bereits
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Finden der Schachbrettecken
+        ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+
+        # Wenn Ecken gefunden wurden -> Objektpunkte und Bildpunkte speichern
+        if ret:
+            obj_points.append(objp)
+            corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+            img_points.append(corners2)
+
+            # Einzeichnen und Anzeigen der Ecken
+            cv2.drawChessboardCorners(img, chessboard_size, corners2, ret)
+            cv2.imshow('img', img)
+
+            # Warte kurz
+            cv2.waitKey(500)
+
+cv2.destroyAllWindows()
