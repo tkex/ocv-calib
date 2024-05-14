@@ -14,7 +14,7 @@ if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
 # Bearbeiten der Bilder
-def edit_image(img):
+def better_img_edit(img):
 
     # Bild in Graustufen umwandeln
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -32,7 +32,7 @@ for filename in os.listdir(input_folder):
         img_path = os.path.join(input_folder, filename)
         img = cv2.imread(img_path)
 
-        edited_img = edit_image(img)
+        edited_img = better_img_edit(img)
         edited_img_path = os.path.join(output_folder, filename)
 
         cv2.imwrite(edited_img_path, edited_img)
@@ -45,7 +45,7 @@ chessboard_size = (8, 4)
 # Größe eines Quadrats in Millimetern
 square_size = 28.77
 
-# Kriterien für die Ecksuche
+# Kriterien für die Ecksuche (max. Iterationen + Genauigkeit)
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 # 3D Punkte in der realen Welt
@@ -57,6 +57,7 @@ objp = objp * square_size
 
 # Arrays für die Speicherung der 3D Punkte und der 2D Bildpunkte für alle  eingelesenen Bilder
 # dh. die Position der Schachbrettecken in der realen Welt (z.B. 0,0,0; 1,0,0; 2,0,0; ..., 7,3,0)
+
 # 3D Punkte in der realen Welt
 obj_points = []
 # 2D Punkte in den Bildern
@@ -72,6 +73,8 @@ for filename in os.listdir(output_folder):
         # Einlesen des Bilds
         img = cv2.imread(img_path)
 
+        print(f"Eingelesenes Bild: {filename}")
+
         # Präventiv, passiert aber in der Edit-Funktion bereits
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -84,11 +87,34 @@ for filename in os.listdir(output_folder):
             corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
             img_points.append(corners2)
 
-            # Einzeichnen und Anzeigen der Ecken
+            # Einzeichnen der Ecken
             cv2.drawChessboardCorners(img, chessboard_size, corners2, ret)
+
+            # Anzeige des Bildes samt Ecke
             cv2.imshow('img', img)
 
             # Warte kurz
             cv2.waitKey(500)
 
 cv2.destroyAllWindows()
+
+
+# Kamerakalibrierung (mit den Objekt- und Bildpunkten)
+# ret: der RMS (Root Mean Square) Reprojektion-Fehler. Niedriger Wert -> bessere/genauere Kalibrierung.
+ret, cam_matrix, distortion_coeff, rotation_vectors, translation_vectors = cv2.calibrateCamera(obj_points, img_points, gray.shape[::-1], None, None)
+
+# Ausgabe Kalibrierungsergebnisse
+print("Kalibrierung abgeschlossen:")
+print("Erfolgsrate (RMS-Fehler):", ret)
+
+print("Kameramatrix:")
+print(cam_matrix)
+
+print("Verzerrungskoeffizienten:")
+print(distortion_coeff)
+
+print("Rotationsvektoren:")
+print(rotation_vectors)
+
+print("Translationsvektoren:")
+print(translation_vectors)
