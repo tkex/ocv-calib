@@ -108,7 +108,7 @@ cv2.destroyAllWindows()
 
 
 # Kamerakalibrierung (mit den Objekt- und Bildpunkten)
-# ret: der RMS (Root Mean Square) Reprojektion-Fehler. Niedriger Wert -> bessere/genauere Kalibrierung.
+# ret: der RMS (Root Mean Square) . Niedriger Wert -> bessere/genauere Kalibrierung.
 ret, cam_matrix, distortion_coeff, rotation_vectors, translation_vectors = cv2.calibrateCamera(obj_points, img_points, gray.shape[::-1], None, None)
 
 # Ausgabe Kalibrierungsergebnisse
