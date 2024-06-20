@@ -1,178 +1,205 @@
 import cv2
-import os
 import numpy as np
+import os
 
 # Aktuelles Verzeichnis
 project_dir = os.path.dirname(os.path.abspath(__file__))
 
+print(project_dir)
+
 # Pfade der Bilder
 in_folder = os.path.join(project_dir, 'imgs')
 out_folder = os.path.join(project_dir, 'imgs_edited')
+calib_file = os.path.join(out_folder, 'calib_data.npz')
 
 # Output-Folder erstellen (falls nicht vorhanden)
 if not os.path.exists(out_folder):
     os.makedirs(out_folder)
 
-# Bearbeiten der Bilder
-def better_img_edit(img):
-
-    # Bild in Graustufen umwandeln
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Kontrast erhöhen
-    # edited_img = cv2.equalizeHist(gray)
-
-    return gray
-
-# Bilder bearbeiten und speichern
-for fname in os.listdir(in_folder):
-
-    if fname.endswith(".jpg"):
-
-        img_path = os.path.join(in_folder, fname)
-        img = cv2.imread(img_path)
-
-        edited_img = better_img_edit(img)
-        edited_img_path = os.path.join(out_folder, fname)
-
-        cv2.imwrite(edited_img_path, edited_img)
-
-
-
-# Schachbrettgröße (innere Ecken)
-chessboard_size = (8, 4)
-
-# Größe eines Quadrats in Millimetern
-square_size = 28.77
-
-# Kriterien für die Ecksuche (max. Iterationen + Genauigkeit)
-criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-
-# 3D Punkte in der realen Welt
-# (Array 3D Punkte welche die Position der Schachbrettecken in der echten Welt darstellen. 32 Punkte mit Z null.)
-obj_point = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-obj_point[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
-
-# Skalierung der 3D Punkte mit der tatsächlichen Größe der Quadrate
-obj_point = obj_point * square_size
-
-# Arrays für die Speicherung der 3D Punkte und der 2D Bildpunkte für alle  eingelesenen Bilder
-# dh. die Position der Schachbrettecken in der realen Welt (z.B. 0,0,0; 1,0,0; 2,0,0; ..., 7,3,0)
-
-# 3D Punkte in der realen Welt
-obj_points = []
-
-# 2D Punkte in den Bildern
-img_points = [] 
-
-# Liste um Namen zu spechen für RMS (Bild <-> RMS Zuweisung)
-img_names = []
-
-# Punktsuche (aus dem editierten Bilder-Ordner)
-for fname in os.listdir(out_folder):
-
-    if fname.endswith(".jpg"):
-
-        img_path = os.path.join(out_folder, fname)
-
-        # Einlesen des Bilds
-        img = cv2.imread(img_path)
-
-        print(f"Eingelesenes Bild: {fname}")
-
-        # Präventiv, passiert aber in der Edit-Funktion bereits
+if not os.path.exists(calib_file):
+    # -----------------------------------
+    # (*) LADEN UND BEARBEITEN DER KALIBIERUNGSBILDER
+    # -----------------------------------
+    # Bearbeiten der Bilder
+    def better_img_edit(img):
+        # Bild in Graustufen umwandeln
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return gray
 
-        # Finden der Schachbrettecken
-        ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+    # Bilder bearbeiten und speichern
+    for fname in os.listdir(in_folder):
+        if fname.endswith(".jpg"):
+            img_path = os.path.join(in_folder, fname)
+            img = cv2.imread(img_path)
+            edited_img = better_img_edit(img)
+            edited_img_path = os.path.join(out_folder, fname)
+            cv2.imwrite(edited_img_path, edited_img)
 
-        # Wenn Ecken gefunden wurden -> Objektpunkte und Bildpunkte speichern
-        if ret:
-            obj_points.append(obj_point)
-            corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-            img_points.append(corners2)
+    # -----------------------------------
+    # (1) KALIBRIERUNG
+    # -----------------------------------
+    # Schachbrettgröße (innere Ecken)
+    chessboard_size = (8, 4)
 
-            # Bild in Namensliste hinzufügen (für RMS Ermittlung)
-            img_names.append(fname)
+    # Größe eines Quadrats in Millimetern
+    square_size = 28.57
 
-            # Einzeichnen der Ecken
-            cv2.drawChessboardCorners(img, chessboard_size, corners2, ret)
+    # Kriterien für die Ecksuche (max. Iterationen + Genauigkeit)
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-            # Anzeige des Bildes samt Ecke
-            cv2.imshow('img', img)
+    # 3D Punkte in der realen Welt
+    obj_point = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+    obj_point[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
+    obj_point *= square_size
 
-            # Warte kurz
-            cv2.waitKey(500)
+    # Arrays für die Speicherung der 3D Punkte und der 2D Bildpunkte für alle eingelesenen Bilder
+    obj_points = []  # 3D Punkte in der realen Welt
+    img_points = []  # 2D Punkte in den Bildern
+    img_names = []   # Liste um Namen zu speichern für RMS (Bild <-> RMS Zuweisung)
 
+    # Punktsuche (aus dem editierten Bilder-Ordner)
+    for fname in os.listdir(out_folder):
+        if fname.endswith(".jpg"):
+            img_path = os.path.join(out_folder, fname)
+            img = cv2.imread(img_path)
+            if img is None:
+                print(f"Irgendein Fehler beim Laden des Bildes")
+                continue
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+            if ret:
+                obj_points.append(obj_point)
+                corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+                img_points.append(corners2)
+                img_names.append(fname)
+                cv2.drawChessboardCorners(img, chessboard_size, corners2, ret)
+                cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+                cv2.imshow('img', img)
+                cv2.waitKey(50)
+
+    cv2.destroyAllWindows()
+
+    # Kamerakalibrierung (mit den Objekt- und Bildpunkten)
+    ret, cam_matrix, distortion_coeff, rotation_vectors, translation_vectors = cv2.calibrateCamera(obj_points, img_points, gray.shape[::-1], None, None)
+
+    # Kalibrierungsergebnisse speichern
+    np.savez(calib_file,
+             cam_matrix=cam_matrix,
+             distortion_coeff=distortion_coeff,
+             rotation_vectors=rotation_vectors,
+             translation_vectors=translation_vectors)
+    
+    # -----------------------------------
+    # (3) REPROJECTIONSFEHLER
+    # -----------------------------------
+
+    # Berechnung des Reprojektionsfehlers
+    mean_error = 0
+    for i in range(len(obj_points)):
+        imgpoints2, _ = cv2.projectPoints(obj_points[i], rotation_vectors[i], translation_vectors[i], cam_matrix, distortion_coeff)
+        error = cv2.norm(img_points[i], imgpoints2, cv2.NORM_L2) / len(imgpoints2)
+        mean_error += error
+
+    mean_error /= len(obj_points)
+    print(f"Gesamter Reprojektionsfehler: {mean_error}")
+else:
+    # Kalibrierungsergebnisse laden
+    calib_data = np.load(calib_file)
+    cam_matrix = calib_data['cam_matrix']
+    distortion_coeff = calib_data['distortion_coeff']
+    rotation_vectors = calib_data['rotation_vectors']
+    translation_vectors = calib_data['translation_vectors']
+
+# Ausgabe Kalibrierungsergebnisse
+"""
+print("Kalibrierung wurde abgeschlossen!")
+print("Erfolgsrate (RMS-Fehler):", ret)
+print("Kameramatrix:")
+print(cam_matrix)
+print("Verzerrungskoeffizienten:")
+print(distortion_coeff)
+print("Rotationsvektoren:")
+print(rotation_vectors)
+print("Translationsvektoren:")
+print(translation_vectors)
+"""
+
+# -----------------------------------
+# (2) ENTZERRUNG EINES EINGABE BILDES
+# -----------------------------------
+
+image_name = "240500013_markings_rotated.png" # 240500013_markings_rotated.png
+img_path = os.path.join(in_folder, image_name)
+print(img_path)
+
+img = cv2.imread(img_path)
+
+h, w = img.shape[:2]
+newcameramtx, roi = cv2.getOptimalNewCameraMatrix(cam_matrix, distortion_coeff, (w, h), 1, (w, h))
+
+# Verzerrung rausnehmen
+dst = cv2.undistort(img, cam_matrix, distortion_coeff, None, newcameramtx)
+
+# Bild zuschneiden
+x, y, w, h = roi
+dst = dst[y:y + h, x:x + w]
+
+# Bild speichern
+undistorted_img_path = os.path.join(out_folder, 'entzerrt_' + image_name)
+cv2.imwrite(undistorted_img_path, dst)
+
+# Entzerrtes Bild anzeigen
+cv2.namedWindow('entzerrt_img', cv2.WINDOW_NORMAL)
+cv2.imshow('entzerrt_img', dst)
+cv2.waitKey(100)
 cv2.destroyAllWindows()
 
 
-# Kamerakalibrierung (mit den Objekt- und Bildpunkten)
-# ret: der RMS (Root Mean Square) . Niedriger Wert -> bessere/genauere Kalibrierung.
-ret, cam_matrix, distortion_coeff, rotation_vectors, translation_vectors = cv2.calibrateCamera(obj_points, img_points, gray.shape[::-1], None, None)
+# AUF BASIS VON: https://stackoverflow.com/questions/51272055/opencv-unproject-2d-points-to-3d-with-known-depth-z
+def project(points, intrinsic, distortion):
+    rvec = tvec = np.array([0.0, 0.0, 0.0])
+    projected_points, _ = cv2.projectPoints(points, rvec, tvec, intrinsic, distortion)
 
-# Ausgabe Kalibrierungsergebnisse
-print("Kalibrierung wurde abgeschlossen!")
+    return np.squeeze(projected_points, axis=1)
 
-print("Erfolgsrate (RMS-Fehler):", ret)
+def unproject(points, Z, intrinsic, distortion):
+    f_x = intrinsic[0, 0]
+    f_y = intrinsic[1, 1]
+    c_x = intrinsic[0, 2]
+    c_y = intrinsic[1, 2]
 
-print("Kameramatrix:")
-print(cam_matrix)
+    # (1) Entzerren
+    points_undistorted = cv2.undistortPoints(np.expand_dims(points.astype(np.float32), axis=1), intrinsic, distortion, P=intrinsic)
+    points_undistorted = np.squeeze(points_undistorted, axis=1)
 
-print("Verzerrungskoeffizienten:")
-print(distortion_coeff)
+    # (2) )Reprojektion
+    result = []
 
-print("Rotationsvektoren:")
-print(rotation_vectors)
+    for idx in range(points_undistorted.shape[0]):
+        z = Z[0] if len(Z) == 1 else Z[idx]
+        x = (points_undistorted[idx, 0] - c_x) / f_x * z
+        y = (points_undistorted[idx, 1] - c_y) / f_y * z
 
-print("Translationsvektoren:")
-print(translation_vectors)
+        result.append([x, y, z])
 
-# Reprojection-Error berechnen
-#mean_error = 0
+    return np.array(result)
 
-#for i in range(len(obj_points)):
-#    img_points2, _ = cv2.projectPoints(obj_points[i], rotation_vectors[i], translation_vectors[i], cam_matrix, distortion_coeff)
+# Kalibrierungsergebnisse aus der Datei laden
+#calib_data = np.load(calib_file)
+#cam_matrix = calib_data['cam_matrix']
+#distortion_coeff = calib_data['distortion_coeff']
 
-#    error = cv2.norm(img_points[i], img_points2, cv2.NORM_L2) / len(img_points2)
+# Punktkoordinaten und Tiefe (Z)
+u, v = 2099, 172
+depth = 171  # Tiefe in mm
 
-#    mean_error += error
+# Punkt und Tiefe in Projektions- und Umprojektionsfunktionen einfügen
+point_single = np.array([[u, v]], dtype=np.float32)
+Z = np.array([depth], dtype=np.float32)
 
-#print("Gesamter Reprojection-Error: {}".format(mean_error / len(obj_points)))
+# Umprojektion des Punkts von 2D -> 3D
+point_single_unprojected = unproject(point_single, Z, cam_matrix, distortion_coeff)
 
+print("Erwarteter Punkt:", [u, v, depth])
+print("Berechneter Punkt:", point_single_unprojected[0])
 
-# Reprojection-Error für jedes Bild berechnen und anzeigen
-mean_error = 0
-
-# Liste für Fehler je Bild
-errors_per_image = []
-
-for i in range(len(obj_points)):
-
-    img_points2, _ = cv2.projectPoints(obj_points[i], rotation_vectors[i], translation_vectors[i], cam_matrix, distortion_coeff)
-
-    error = cv2.norm(img_points[i], img_points2, cv2.NORM_L2) / len(img_points2)
-    mean_error += error
-
-    errors_per_image.append((img_names[i], error))
-
-# Durchschnittlichen Reprojection-Error berechnen
-mean_error /= len(obj_points)
-
-# Ergebnisse anzeigen
-print("Gesamter Reprojection-Error: {}".format(mean_error))
-
-for fname, error in errors_per_image:
-    print(f"Reprojection-Error für {fname}: {error}")
-
-# Bilder mit höchsten Reprojection-Errors finden
-def get_img_error(img):
-    return img[1]
-
-errors_per_image.sort(key=get_img_error, reverse=True)
-
-# Top 5 Bilder mit den höchsten Reprojection-Error
-print("\nBilder mit den höchsten Reprojection-Error (sortiert):")
-
-for fname, error in errors_per_image[:5]: 
-    print(f"{fname}: {error}")
