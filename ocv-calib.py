@@ -190,16 +190,47 @@ def unproject(points, Z, intrinsic, distortion):
 #distortion_coeff = calib_data['distortion_coeff']
 
 # Punktkoordinaten und Tiefe (Z)
-u, v = 2090, 1940 
-depth = 171  # Tiefe in mm
+#u, v = 2090, 1940 
+#depth = 171  # Tiefe in mm
 
 # Punkt und Tiefe in Projektions- und Umprojektionsfunktionen einfügen
-point_single = np.array([[u, v]], dtype=np.float32)
-Z = np.array([depth], dtype=np.float32)
+#point_single = np.array([[u, v]], dtype=np.float32)
+#Z = np.array([depth], dtype=np.float32)
 
 # Umprojektion des Punkts von 2D -> 3D
-point_single_unprojected = unproject(point_single, Z, cam_matrix, distortion_coeff)
+#point_single_unprojected = unproject(point_single, Z, cam_matrix, distortion_coeff)
 
-print("Erwarteter Punkt:", [u, v, depth])
-print("Berechneter Punkt:", point_single_unprojected[0])
+#print("Erwarteter Punkt:", [u, v, depth])
+#print("Berechneter Punkt:", point_single_unprojected[0])
+
+# Einzelfunktion für Punktprojektion
+def get_single_projection(u, v, depth):
+    point = np.array([[u, v]], dtype=np.float32)
+    Z = np.array([depth], dtype=np.float32)
+    point_unprojected = unproject(point, Z, cam_matrix, distortion_coeff)
+
+    print("Erwarteter Punkt:", [u, v, depth])
+    print("Berechneter Punkt:", point_unprojected[0])
+
+    return point_unprojected[0]
+
+
+# Beispielaufruf für die Einzelfunktion get_single_projection u, v, depth (z)
+u, v, depth = 2090, 1940, 171
+# Ausgabe bereits hier
+single_point_result = get_single_projection(u, v, depth)
+
+# --------------------------------------------------------------
+
+# Funktion für Liste von Punkten u,v
+def get_multiple_projections(points_with_depth):
+    results = []
+
+    for (u, v, depth) in points_with_depth:
+        point_unprojected = get_single_projection(u, v, depth)
+        results.append(point_unprojected)
+
+    return results
+
+
 
