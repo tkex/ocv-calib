@@ -190,7 +190,7 @@ def unproject(points, Z, intrinsic, distortion):
 #distortion_coeff = calib_data['distortion_coeff']
 
 # Punktkoordinaten und Tiefe (Z)
-u, v = 2099, 172
+u, v = 2090, 1940 
 depth = 171  # Tiefe in mm
 
 # Punkt und Tiefe in Projektions- und Umprojektionsfunktionen einfügen
