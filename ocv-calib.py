@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import os
+import pandas as pd
+import re
 
 # Aktuelles Verzeichnis
 project_dir = os.path.dirname(os.path.abspath(__file__))
@@ -216,9 +218,9 @@ def get_single_projection(u, v, depth):
 
 
 # Beispielaufruf für die Einzelfunktion get_single_projection u, v, depth (z)
-u, v, depth = 2090, 1940, 171
+#u, v, depth = 344, 211, 171
 # Ausgabe bereits hier
-single_point_result = get_single_projection(u, v, depth)
+#single_point_result = get_single_projection(u, v, depth)
 
 # --------------------------------------------------------------
 
@@ -232,5 +234,54 @@ def get_multiple_projections(points_with_depth):
 
     return results
 
+# Beispielaufruf für die Funktion get_multiple_projections
+points_with_depth = [(2090, 1940, 171), (211, 344, 171)]
+# Ausgabe bereits hier
+multiple_points_result = get_multiple_projections(points_with_depth)
 
+# --------------------------------------------------------------
+
+
+# Funktion zum Einlesen der Datei und Berechnung der Punkte
+def get_uv_points_from_reknow_file(file_path):
+    # Datei einlesen
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+
+    # Liste für die extrahierten Daten
+    extracted_points = []
+
+    # Durch jede Zeile iterieren und die erste Zahl extrahieren
+    for line in lines:
+        # Alle Gruppen von Zahlen finden
+        groups = line.split('][')
+        # Erste Gruppe bereinigen und extrahieren
+        first_group = groups[0].replace('[', '').replace(']', '')
+        extracted_points.append(first_group)
+    
+    # 'sample' entfernen, falls vorhanden
+    if extracted_points[0].lower() == 'sample':
+        extracted_points.pop(0)
+    
+    # Neue Liste für die Paare u,v und den konstanten Wert z
+    uvz_points = []
+    for point in extracted_points:
+        u, v = point.split(',')
+        # Konstanter Faktor 171 für z 
+        uvz_points.append((u.strip(), v.strip(), 171))
+    
+    return uvz_points
+
+
+
+file_path = 'a_lot_of_points.txt'
+extracted_uv_points = get_uv_points_from_reknow_file(file_path)
+
+# Anzeige uv Liste
+#print(extracted_uv_points)
+
+# ***
+
+# Berechnung der Projektionen
+#calculated_projections = get_multiple_projections(extracted_uv_points)
 
