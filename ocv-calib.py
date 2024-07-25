@@ -130,7 +130,7 @@ print(translation_vectors)
 # (2) ENTZERRUNG EINES EINGABE BILDES
 # -----------------------------------
 
-image_name = "240500013_markings_rotated.png" # 240500013_markings_rotated.png
+image_name = "240500013_markings.png" # vorher 240500013_markings_rotated.png
 img_path = os.path.join(in_folder, image_name)
 print(img_path)
 
@@ -237,7 +237,7 @@ def get_multiple_projections(points_with_depth):
 # Beispielaufruf für die Funktion get_multiple_projections
 points_with_depth = [(2090, 1940, 171), (211, 344, 171)]
 # Ausgabe bereits hier
-multiple_points_result = get_multiple_projections(points_with_depth)
+#multiple_points_result = get_multiple_projections(points_with_depth)
 
 # --------------------------------------------------------------
 
@@ -283,5 +283,44 @@ extracted_uv_points = get_uv_points_from_reknow_file(file_path)
 # ***
 
 # Berechnung der Projektionen
-#calculated_projections = get_multiple_projections(extracted_uv_points)
+calculated_projections = get_multiple_projections(extracted_uv_points)
 
+
+
+
+
+
+
+
+
+
+# Rückprojektion der 3D-Punkte auf 2D
+def project_points(points, intrinsic, distortion):
+    rvec = tvec = np.array([0.0, 0.0, 0.0])
+    projected_points, _ = cv2.projectPoints(points, rvec, tvec, intrinsic, distortion)
+    return projected_points
+
+# 3D-Punkte in ein NumPy-Array umwandeln
+points_3d = np.array(calculated_projections)
+
+# 3D-Punkte auf 2D-Punkte projizieren
+projected_points = project_points(points_3d, cam_matrix, distortion_coeff)
+projected_points = projected_points.reshape(-1, 2)
+
+# Bild laden
+image_name = "240500013_markings.png"
+img_path = os.path.join(in_folder, image_name)
+img = cv2.imread(img_path)
+
+# Zeichne die projizierten Punkte auf das Bild
+for point in projected_points:
+    cv2.circle(img, (int(point[0]), int(point[1])), 5, (0, 255, 0), -1)
+
+# Ergebnis speichern und anzeigen
+output_image_path = os.path.join(out_folder, 'marked_' + image_name)
+cv2.imwrite(output_image_path, img)
+
+cv2.namedWindow('marked_img', cv2.WINDOW_NORMAL)
+cv2.imshow('marked_img', img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
