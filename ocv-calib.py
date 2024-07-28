@@ -207,103 +207,41 @@ def unproject(points, Z, intrinsic, distortion):
 #print("Erwarteter Punkt:", [u, v, depth])
 #print("Berechneter Punkt:", point_single_unprojected[0])
 
+
+
+
+
+
 # Einzelfunktion für Punktprojektion
-def get_single_projection(u, v, depth):
+def get_single_projection(u, v):
     point = np.array([[u, v]], dtype=np.float32)
-    Z = np.array([depth], dtype=np.float32)
+    Z = np.array([171], dtype=np.float32)  # konstante Tiefe von 171 mm
     point_unprojected = unproject(point, Z, cam_matrix, distortion_coeff)
 
-    print("Erwarteter Punkt:", [u, v, depth])
+    print("Erwarteter Punkt:", [u, v])
     print("Berechneter Punkt:", point_unprojected[0])
 
     return point_unprojected[0]
 
-
-# Beispielaufruf für die Einzelfunktion get_single_projection u, v, depth (z)
-#u, v, depth = 344, 211, 171
-# Ausgabe bereits hier
-#single_point_result = get_single_projection(u, v, depth)
-
-# --------------------------------------------------------------
+# Beispielaufruf für die Einzelfunktion get_single_projection
+u, v = 344, 211
+single_point_result = get_single_projection(u, v)
 
 # Funktion für Liste von Punkten u,v
-def get_multiple_projections(points_with_depth):
+def get_multiple_projections(points):
     results = []
 
-    for (u, v, depth) in points_with_depth:
-        point_unprojected = get_single_projection(u, v, depth)
+    for (u, v) in points:
+        point_unprojected = get_single_projection(u, v)
         results.append(point_unprojected)
 
     return results
 
 # Beispielaufruf für die Funktion get_multiple_projections
-points_with_depth = [(2090, 1940, 171), (211, 344, 171)]
-# Ausgabe bereits hier
-#multiple_points_result = get_multiple_projections(points_with_depth)
+points = [(2090, 1940), (211, 344)]
+multiple_points_result = get_multiple_projections(points)
 
-# --------------------------------------------------------------
-
-
-# Funktion zum Einlesen der Datei und Berechnung der Punkte
-def get_uv_points_from_reknow_file(file_path):
-    # Datei einlesen
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-
-    # Liste für die extrahierten Daten
-    sample_points = []
-    target_points = []
-    computer_points = []
-
-    # Durch jede Zeile iterieren und die entsprechenden Gruppen extrahieren
-    for line in lines:
-        # Alle Gruppen von Zahlen finden
-        groups = line.split('][')
-        # Extrahiere die einzelnen Gruppen und bereinige sie
-        sample = groups[0].replace('[', '').replace(']', '')
-        target = groups[1].replace('[', '').replace(']', '')
-        computer = groups[2].replace('[', '').replace(']', '')
-        
-        # Füge die extrahierten Punkte zu den jeweiligen Listen hinzu
-        sample_points.append(sample)
-        target_points.append(target)
-        computer_points.append(computer)
-    
-    # 'sample' entfernen, falls vorhanden
-    if sample_points[0].lower() == 'sample':
-        sample_points.pop(0)
-        target_points.pop(0)
-        computer_points.pop(0)
-    
-    # Neue Liste für die Tupel (sample, target, computer)
-    results = []
-    for sample, target, computer in zip(sample_points, target_points, computer_points):
-        results.append((sample, target, computer))
-    
-    return results
-
-
-file_path = 'a_lot_of_points.txt'
-extracted_points = get_uv_points_from_reknow_file(file_path)
-
-# Ausgabe der Punkte
-print("Sample, Target, Computed Coordinates:")
-for sample, target, computer in extracted_points:
-    print(f"Sample: {sample}, Target: {target}, Computer: {computer}")
-
-
-
-# Berechnung der Projektionen (hier sample u,v Koordinaten verwenden mit statisch z =) 171
-#calculated_projections = get_multiple_projections(extracted_uv_points)
-
-#Extrahiere die Sample-Koordinaten (u, v) und setze z auf 171
-sample_points = [(int(sample.split(',')[0]), int(sample.split(',')[1])) for sample, _, _ in extracted_points]
-sample_points_with_depth = [(u, v, 171) for u, v in sample_points]
-
-# Berechne die Projektionen
-calculated_projections = unproject(np.array([(u, v) for u, v, _ in sample_points_with_depth]), np.array([171]), cam_matrix, distortion_coeff)
-
-
+# Funktion zum Einlesen der Datei und Extrahieren der Sample-Punkte
 def get_sample_points(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -320,15 +258,12 @@ def get_sample_points(file_path):
     if sample_points[0].lower() == 'sample':
         sample_points.pop(0)
     
-    uvz_points = []
+    uv_points = []
     for point in sample_points:
         u, v = point.split(',')
-        uvz_points.append((int(u.strip()), int(v.strip()), 171))
+        uv_points.append((int(u.strip()), int(v.strip())))
     
-    return uvz_points
-
-
-
+    return uv_points
 
 # Funktion zum Einlesen der Datei und Extrahieren der Zielpunkte
 def get_target_points(file_path):
@@ -347,12 +282,12 @@ def get_target_points(file_path):
     if target_points[0].lower() == 'target':
         target_points.pop(0)
     
-    uvz_points = []
+    uv_points = []
     for point in target_points:
         u, v, z = map(float, point.split(','))
-        uvz_points.append((int(u), int(z), int(v)))  # Vertausche v und z
+        uv_points.append((int(u), int(z), int(v)))  # Vertausche v und z
     
-    return uvz_points
+    return uv_points
 
 # Funktion zum Einlesen der Datei und Extrahieren der berechneten Punkte
 def get_computed_points(file_path):
@@ -371,57 +306,20 @@ def get_computed_points(file_path):
     if computed_points[0].lower() == 'computed':
         computed_points.pop(0)
     
-    uvz_points = []
+    uv_points = []
     for point in computed_points:
         u, v, z = map(float, point.split(','))
-        uvz_points.append((int(u), int(z), int(v)))  # Vertausche v und z
+        uv_points.append((int(u), int(z), int(v)))  # Vertausche v und z
     
-    return uvz_points
-
-
-
-# Zielpunkte extrahieren und anzeigen
-target_points = get_target_points(file_path)
-print("Target Points:")
-for target in target_points:
-    print(f"Target: {target}")
-
-
-# Zielpunkte extrahieren und anzeigen
-computed_points = get_computed_points(file_path)
-print("Computed Points:")
-for computed in computed_points:
-    print(f"Computed: {computed}")
-
-
-
+    return uv_points
 
 # Datei mit Punkten einlesen
 file_path = 'a_lot_of_points.txt'
-extracted_uv_points = get_sample_points(file_path)
-
-# Anzeige uv Liste
-print(extracted_uv_points)
+sample_points = get_sample_points(file_path)
+computed_points = get_computed_points(file_path)
 
 # Berechnung der Projektionen (hier sample u,v Koordinaten verwenden mit statisch z = 171)
-def get_multiple_projections(points_with_depth):
-    results = []
-
-    for (u, v, depth) in points_with_depth:
-        point_unprojected = get_single_projection(u, v, depth)
-        results.append(point_unprojected)
-
-    return results
-
-# Berechne die Projektionen
-calculated_projections = get_multiple_projections(extracted_uv_points)
-
-
-
-#print("Berechnete Punkte u,v,z aus Samples:")
-#for sample_point, point in zip(sample_points_with_depth, calculated_projections):
-#    print(f"Sample u,v,z: ({sample_point[0]}, {sample_point[1]}, {sample_point[2]}) -> X: {point[0]}, Y: {point[1]}, Z: {point[2]}")
-
+calculated_projections = get_multiple_projections(sample_points)
 
 # Rückprojektion der 3D-Punkte auf 2D
 def project_points(points, intrinsic, distortion):
@@ -430,20 +328,25 @@ def project_points(points, intrinsic, distortion):
     return projected_points
 
 # 3D-Punkte in ein NumPy-Array umwandeln
-points_3d = np.array(calculated_projections)
+points_3d_sample = np.array(calculated_projections, dtype=np.float32)
+points_3d_computed = np.array(computed_points, dtype=np.float32)
 
 # 3D-Punkte auf 2D-Punkte projizieren
-projected_points = project_points(points_3d, cam_matrix, distortion_coeff)
-projected_points = projected_points.reshape(-1, 2)
+projected_points_sample = project_points(points_3d_sample, cam_matrix, distortion_coeff).reshape(-1, 2)
+projected_points_computed = project_points(points_3d_computed, cam_matrix, distortion_coeff).reshape(-1, 2)
 
 # Bild laden
 image_name = "240500013_markings.png"
 img_path = os.path.join(in_folder, image_name)
 img = cv2.imread(img_path)
 
-# Zeichne die projizierten Punkte auf das Bild
-for point in projected_points:
+# Zeichne die projizierten Sample-Punkte auf das Bild (grün)
+for point in projected_points_sample:
     cv2.circle(img, (int(point[0]), int(point[1])), 5, (0, 255, 0), -1)  # Green color in BGR
+
+# Zeichne die extrahierten berechneten Punkte auf das Bild (rot)
+for point in projected_points_computed:
+    cv2.circle(img, (int(point[0]), int(point[1])), 5, (0, 0, 255), -1)  # Red color in BGR
 
 # Ergebnis speichern und anzeigen
 output_image_path = os.path.join(out_folder, 'marked_' + image_name)
