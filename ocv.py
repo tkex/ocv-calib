@@ -3,11 +3,8 @@ import numpy as np
 import os
 import pandas as pd
 import re
-
 # Aktuelles Verzeichnis
 project_dir = os.path.dirname(os.path.abspath(__file__))
-
-print(project_dir)
 
 # Pfade der Bilder
 in_folder = os.path.join(project_dir, 'imgs')
