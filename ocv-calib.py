@@ -7,7 +7,7 @@ import os
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 IN_FOLDER = os.path.join(PROJECT_DIR, 'imgs')
 OUT_FOLDER = os.path.join(PROJECT_DIR, 'imgs_edited')
-CALIB_FILE = os.path.join(OUT_FOLDER, 'calib_data.npz')
+CALIB_FILE = os.path.join(OUT_FOLDER, 'calibration_data.npz')
 CHESSBOARD_SIZE = (8, 4)
 SQUARE_SIZE = 28.57
 CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -296,8 +296,8 @@ class ImageMarker:
         # Legende hinzufügen
         legend_x, legend_y = 20, 40
         cv2.putText(img, 'Sample Points (mit OpenCV-Algorithmus berechnet)', (legend_x, legend_y), cv2.FONT_ITALIC, 1, (0, 255, 0), 2)
-        cv2.putText(img, 'Target Punkte (aus REKNOW Datei)', (legend_x, legend_y + 45), cv2.FONT_ITALIC, 1, (255, 0, 0), 2)
-        cv2.putText(img, 'Computed Punkte (aus REKNOW Datei)', (legend_x, legend_y + 90), cv2.FONT_ITALIC, 1, (0, 0, 255), 2)
+        cv2.putText(img, 'Target Punkte (aus RK Datei)', (legend_x, legend_y + 45), cv2.FONT_ITALIC, 1, (255, 0, 0), 2)
+        cv2.putText(img, 'Computed Punkte (aus RK Datei)', (legend_x, legend_y + 90), cv2.FONT_ITALIC, 1, (0, 0, 255), 2)
 
         # Ergebnis speichern und anzeigen
         output_image_path = os.path.join(self.out_folder, output_name)
@@ -352,7 +352,7 @@ def main():
 
     # Bild entzerren und speichern
     undistorter = ImageUndistorter(IN_FOLDER, OUT_FOLDER, calibrator.cam_matrix, calibrator.distortion_coeff)
-    undistorted_img_path = undistorter.undistort_image("240500013_markings.png", "entzerrtes_bild.png")
+    undistorted_img_path = undistorter.undistort_image("240500013_markings.png", "undistorted_img.png")
 
     if undistorted_img_path is None:
         print("Fehler beim Entzerren des Bildes.")
@@ -395,7 +395,7 @@ def main():
 
     # Punkte auf dem Originalbild markieren und speichern
     image_marker = ImageMarker(IN_FOLDER, OUT_FOLDER)
-    image_marker.draw_points("240500013_markings.png", projected_points_sample, projected_points_target, projected_points_computed, "eingezeichnete_punkte.png")
+    image_marker.draw_points("240500013_markings.png", projected_points_sample, projected_points_target, projected_points_computed, "drawn_points_img.png")
 
 
     
