@@ -309,6 +309,25 @@ class ImageMarker:
         cv2.destroyAllWindows()
 
 
+class ErrorCalculator:
+    @staticmethod
+    def calculate_mse(computed_points, target_points):
+        return np.mean(np.square(computed_points - target_points), axis=0)
+
+    @staticmethod
+    def calculate_mae(computed_points, target_points):
+        return np.mean(np.abs(computed_points - target_points), axis=0)
+
+    @staticmethod
+    def calculate_total_mse(computed_points, target_points):
+        return np.mean(ErrorCalculator.calculate_mse(computed_points, target_points))
+
+    @staticmethod
+    def calculate_total_mae(computed_points, target_points):
+        return np.mean(ErrorCalculator.calculate_mae(computed_points, target_points))
+
+
+
 def main():
     # Output-Folder erstellen (falls nicht vorhanden)
     if not os.path.exists(OUT_FOLDER):
@@ -349,9 +368,9 @@ def main():
     computed_points = PointLoader.get_computed_points(file_path)
 
     # Ausgabe der Punkte (auskommentiert)
-    # print("Sample Points:", sample_points)
-    # print("Target Points:", target_points)
-    # print("Computed Points:", computed_points)
+    print("Sample Points:", sample_points[:10])
+    print("Target Points:", target_points[:10])
+    print("Computed Points:", computed_points[:10])
 
     # Ausgabe der Target Points (auskommentiert)
     # for i, point in enumerate(target_points):
@@ -379,5 +398,43 @@ def main():
     image_marker.draw_points("240500013_markings.png", projected_points_sample, projected_points_target, projected_points_computed, "eingezeichnete_punkte.png")
 
 
+    
+    # Fehlerberechnung    
+    mse_opencv = ErrorCalculator.calculate_total_mse(projected_points_sample, projected_points_target)
+    mae_opencv = ErrorCalculator.calculate_total_mae(projected_points_sample, projected_points_target)
+
+    mse_java = ErrorCalculator.calculate_total_mse(projected_points_computed, projected_points_target)
+    mae_java = ErrorCalculator.calculate_total_mae(projected_points_computed, projected_points_target)
+
+    print("OpenCV Algorithmus:")
+    print("Total MSE:", mse_opencv)
+    print("Total MAE:", mae_opencv)
+
+    print("\nJava Algorithmus:")
+    print("Total MSE:", mse_java)
+    print("Total MAE:", mae_java)
+    """"""
+
+    # Test
+    sample_points_test = [(1, 1, 1), (1, 1, 1)]
+    computed_points_test = [(1, 1, 1), (1, 2, 1)]
+    target_points_test = [(1, 1, 1), (1, 1, 1)]
+
+    # Umwandeln der Listen in NumPy-Arrays
+    sample_points_test_np = np.array(sample_points_test)
+    computed_points_test_np = np.array(computed_points_test)
+    target_points_test_np = np.array(target_points_test)
+
+    mse_test = ErrorCalculator.calculate_total_mse(sample_points_test_np, target_points_test_np)
+    mae_test = ErrorCalculator.calculate_total_mae(computed_points_test_np, target_points_test_np)
+
+    print(mse_test)
+    print(mae_test)
+
 if __name__ == "__main__":
     main()
+
+# Entfernung: 2.600mm (2.6m)
+# => 102,5mm Entfernung für jede uvz die rauskommt
+#points = [(903, 1067), (973, 1069), (1042, 1070), (1111, 1070), (1180, 1072)]
+#multiple_points_result = get_multiple_projections(points)
