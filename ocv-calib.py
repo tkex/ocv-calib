@@ -298,10 +298,10 @@ class PointLoader:
 
 
 
-class ImageMarker:
+class ImageDrawer:
     """
-    Ist für das Zeichnen von den projizierten Punkten auf Bildern verantwortlich und nimmt die aus den 2D Pixelpunkte (Sample) und berechnete Punkte und udn den Zielkoordinaten 
-    und zeichnet diese auf das Bild.
+    Verantwortlich für das Zeichnen projizierter Punkte auf Bildern. 
+    Nimmt die 2D-Pixelpunkte (Sample), berechnete Punkte und Zielkoordinaten und zeichnet diese auf das Bild.
     """
     def __init__(self, in_folder, out_folder):
         self.in_folder = in_folder
@@ -522,8 +522,8 @@ def main():
     projected_3d_computed_read = point_projector.project(points_3d_computed)
 
     # Punkte auf dem Testbild markieren und speichern
-    image_marker = ImageMarker(IN_FOLDER, OUT_FOLDER)
-    image_marker.draw_points("240500013_markings.png", projected_3d_opencv_calculated, projected_3d_target_read, projected_3d_computed_read, "drawn_points_img.png")
+    image_draw = ImageDrawer(IN_FOLDER, OUT_FOLDER)
+    image_draw.draw_points("240500013_markings.png", projected_3d_opencv_calculated, projected_3d_target_read, projected_3d_computed_read, "drawn_points_img.png")
 
 
     # **** **** **** **** **** 
