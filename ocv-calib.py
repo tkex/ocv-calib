@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import os
-
+import plotly.graph_objects as go
 
 # Konstanten
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -11,27 +11,35 @@ CALIB_FILE = os.path.join(OUT_FOLDER, 'calibration_data.npz')
 CHESSBOARD_SIZE = (8, 4)
 SQUARE_SIZE = 28.57
 CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-Z = 171  # Tiefe für die Umprojektion
+Z = 171  # Tiefe für die Umprojektion ; 2600 für Test 2: Realmessung.
 
 class ImageProcessor:
     def __init__(self, in_folder, out_folder):
+        # Initialisierung der Eingabe- und Ausgabeverzeichnisse
         self.in_folder = in_folder
         self.out_folder = out_folder
 
     def better_img_edit(self, img):
-        # Bild drehen
-        img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)  # COUNTERCLOCKWISE
+        # Bild drehen (90 Grad gegen den Uhrzeigersinn)
+        img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
         # Bild in Graustufen umwandeln
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         return gray
 
     def process_images(self):
+        # Durchlaufe alle Dateien im imgs_edited Ordner
         for fname in os.listdir(self.in_folder):
+            # Falls Datei eine .jpg-Datei ist
             if fname.endswith(".jpg"):
+                # Pfad erstellen (Input)
                 img_path = os.path.join(self.in_folder, fname)
+                # Bild einlesen
                 img = cv2.imread(img_path)
+                # Bild bearbeiten
                 edited_img = self.better_img_edit(img)
+                # Pfad erstellen
                 edited_img_path = os.path.join(self.out_folder, fname)
+                # Bearbeitetes Bild speichern
                 cv2.imwrite(edited_img_path, edited_img)
 
 
@@ -238,7 +246,8 @@ class PointLoader:
         uv_points = []
         for point in target_points:
             u, v, z = map(float, point.split(','))
-            uv_points.append((int(u), -int(z), int(v)))  # Vertausche v und z
+            # Vertausche v und z, runde auf 2 Dezimalstellen
+            uv_points.append((round(u, 2), round(-z, 2), round(v, 2)))
 
         return uv_points
 
@@ -262,9 +271,11 @@ class PointLoader:
         uv_points = []
         for point in computed_points:
             u, v, z = map(float, point.split(','))
-            uv_points.append((int(u), -int(z), int(v)))  # Vertausche v und z
+            # Vertausche v und z, runde auf 2 Dezimalstellen
+            uv_points.append((round(u, 2), round(-z, 2), round(v, 2))) 
 
         return uv_points
+
 
 
 class ImageMarker:
@@ -293,7 +304,7 @@ class ImageMarker:
         for point in points_computed:
             cv2.circle(img, (int(point[0]), int(point[1])), 2, (0, 0, 255), -1)  # Red color in BGR
 
-        # Legende hinzufügen
+        # Legende
         legend_x, legend_y = 20, 40
         cv2.putText(img, 'Sample Points (mit OpenCV-Algorithmus berechnet)', (legend_x, legend_y), cv2.FONT_ITALIC, 1, (0, 255, 0), 2)
         cv2.putText(img, 'Target Punkte (aus RK Datei)', (legend_x, legend_y + 45), cv2.FONT_ITALIC, 1, (255, 0, 0), 2)
@@ -310,21 +321,89 @@ class ImageMarker:
 
 
 class ErrorCalculator:
-    @staticmethod
-    def calculate_mse(computed_points, target_points):
-        return np.mean(np.square(computed_points - target_points), axis=0)
 
     @staticmethod
-    def calculate_mae(computed_points, target_points):
-        return np.mean(np.abs(computed_points - target_points), axis=0)
+    def calculate_deltas(computed_points, target_points):
+        return np.array([np.subtract(target, computed) for target, computed in zip(target_points, computed_points)])
 
     @staticmethod
-    def calculate_total_mse(computed_points, target_points):
-        return np.mean(ErrorCalculator.calculate_mse(computed_points, target_points))
+    def calculate_mae(deltas):
+        return np.mean(np.abs(deltas), axis=0)
 
     @staticmethod
-    def calculate_total_mae(computed_points, target_points):
-        return np.mean(ErrorCalculator.calculate_mae(computed_points, target_points))
+    def calculate_total_mae(deltas):
+        return np.mean(ErrorCalculator.calculate_mae(deltas))
+
+    @staticmethod
+    def calculate_rmse(deltas):
+        return np.sqrt(np.mean(np.square(deltas), axis=0))
+
+    @staticmethod
+    def calculate_total_rmse(deltas):
+        return np.mean(ErrorCalculator.calculate_rmse(deltas))
+
+    @staticmethod
+    def calculate_euclidean_distance(deltas):
+        return np.linalg.norm(deltas, axis=1)
+
+    @staticmethod
+    def calculate_total_euclidean_distance(deltas):
+        return np.mean(ErrorCalculator.calculate_euclidean_distance(deltas))
+
+    @staticmethod
+    def plot_x_deltas(deltas, title, output_file):
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(y=deltas[:, 0], mode='lines+markers', name='Delta X', line=dict(color='red')))
+        fig.add_shape(type="line", x0=0, y0=0, x1=len(deltas), y1=0, line=dict(color="black", width=2, dash="dash"))
+        max_delta = np.max(np.abs(deltas[:, 0]))
+        fig.update_layout(
+            title=title,
+            xaxis_title="Punkte",
+            yaxis_title="X-Abweichung",
+            legend_title="Achse",
+            template="plotly_white",
+            yaxis=dict(range=[-max_delta - 1, max_delta + 1])
+        )
+        fig.write_image(output_file)
+        fig.show()
+
+    @staticmethod
+    def plot_y_deltas(deltas, title, output_file):
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(y=deltas[:, 1], mode='lines+markers', name='Delta Y', line=dict(color='blue')))
+        fig.add_shape(type="line", x0=0, y0=0, x1=len(deltas), y1=0, line=dict(color="black", width=2, dash="dash"))
+        max_delta = np.max(np.abs(deltas[:, 1]))
+        fig.update_layout(
+            title=title,
+            xaxis_title="Punkte",
+            yaxis_title="Y-Abweichung",
+            legend_title="Achse",
+            template="plotly_white",
+            yaxis=dict(range=[-max_delta - 1, max_delta + 1])
+        )
+        fig.write_image(output_file)
+        fig.show()
+
+    def compare_algorithms(self, computed_points_opencv, computed_points_reknow, target_points):
+        # Berechnung der Deltas
+        deltas_opencv = self.calculate_deltas(computed_points_opencv, target_points)
+        deltas_reknow = self.calculate_deltas(computed_points_reknow, target_points)
+
+        # Berechnung der Fehlermaße
+        mae_opencv = round(self.calculate_total_mae(deltas_opencv), 2)
+        rmse_opencv = round(self.calculate_total_rmse(deltas_opencv), 2)
+        euclidean_opencv = round(self.calculate_total_euclidean_distance(deltas_opencv), 2)
+        
+        mae_reknow = round(self.calculate_total_mae(deltas_reknow), 2)
+        rmse_reknow = round(self.calculate_total_rmse(deltas_reknow), 2)
+        euclidean_reknow = round(self.calculate_total_euclidean_distance(deltas_reknow), 2)
+
+        # Ergebnisse
+        print(f"OpenCV - MAE: {mae_opencv}, RMSE: {rmse_opencv}, Euklidische Distanz: {euclidean_opencv}")
+        print(f"REKNOW - MAE: {mae_reknow}, RMSE: {rmse_reknow}, Euklidische Distanz: {euclidean_reknow}")
+
+        return mae_opencv, rmse_opencv, euclidean_opencv, mae_reknow, rmse_reknow, euclidean_reknow
+
 
 
 
@@ -343,7 +422,7 @@ def main():
         calibrator.calibrate_camera()
         calibrator.calculate_reprojection_error()
 
-        # Kalibrierungsergebnisse ausgeben (auskommentiert)
+        # Kalibrierungsergebnisse ausgeben
         # calibrator.print_calibration_results()
     else:
         # Kalibrierungsergebnisse laden
@@ -361,80 +440,116 @@ def main():
     # Punktprojektionen und -umprojektionen
     point_projector = PointProjector(calibrator.cam_matrix, calibrator.distortion_coeff)
 
-    # Datei mit Punkten einlesen
+    # RK-Logdatei mit Punkten einlesen
     file_path = 'a_lot_of_points.txt'
-    sample_points = PointLoader.get_sample_points(file_path)
+
+    # Eingelese RK Logdatei (Sample (2D), Target (3D), Computed (3D)) 
+    read_sample_points = PointLoader.get_sample_points(file_path)
     target_points = PointLoader.get_target_points(file_path)
     computed_points = PointLoader.get_computed_points(file_path)
 
-    # Ausgabe der Punkte (auskommentiert)
-    print("Sample Points:", sample_points[:10])
-    print("Target Points:", target_points[:10])
-    print("Computed Points:", computed_points[:10])
+    # Ausgabe der Punkte
+    print("RK Sample Points:", read_sample_points[:10])
+    print("RK Target Points:", target_points[:10])
+    print("RK Computed Points:", computed_points[:10])
+    print("****")
 
-    # Ausgabe der Target Points (auskommentiert)
-    # for i, point in enumerate(target_points):
-    #    print(f"Target Point {i}: {point}")
+    # Berechnung der 3D-Koordinaten (hier sample u,v Koordinaten verwenden mit statisch z = Z) aus den 2D-Punkten aus RK
+    calculated_opencv_3d = point_projector.get_multiple_projections(read_sample_points)
 
-    # Berechnung der Projektionen (hier sample u,v Koordinaten verwenden mit statisch z = Z)
-    calculated_projections = point_projector.get_multiple_projections(sample_points)
+    # Runden der berechneten 3D-Koordinaten auf zwei Dezimalstellen
+    calculated_opencv_3d = np.round(calculated_opencv_3d, 2)
 
-    # Ausgabe der berechneten 3D-Koordinaten (auskommentiert)
-    # for i, point in enumerate(calculated_projections):
-    #     print(f"Sample Point {i}: {point}")
+    # Ausgabe der berechneten 3D-Koordinaten mit den Sample Points (u, v)
+    for i, (u, v) in enumerate(read_sample_points):
+        calculated_projection = calculated_opencv_3d[i]
+        print(f"Point {i} ({u}, {v}): {calculated_projection}")
 
-    # 3D-Punkte in ein NumPy-Array umwandeln
-    points_3d_sample = np.array(calculated_projections, dtype=np.float32)
-    points_3d_target = np.array(target_points, dtype=np.float32)
-    points_3d_computed = np.array(computed_points, dtype=np.float32)
+    # 3D-Punkte in Numpy-Array umrechnen + runden auf zwei Dezimalstellen
+    points_3d_opencv = np.round(np.array(calculated_opencv_3d), 2)
+    points_3d_target = np.round(np.array(target_points), 2)
+    points_3d_computed = np.round(np.array(computed_points), 2)
+
+    # Ausgabe der ersten 10 Punkte
+    print("\nDie ersten 10 Punkte in points_3d_target (RK Zielkoordinaten):")
+    for i in range(10):
+        print(f"Point {i} (Target RK): ({points_3d_target[i][0]}, {points_3d_target[i][1]}, {points_3d_target[i][2]})")
+
+    print("\nDie ersten 10 Punkte in points_3d_computed (RK berechnete 3D-Koordinaten):")
+    for i in range(10):
+        print(f"Point {i} (Computed RK): ({points_3d_computed[i][0]}, {points_3d_computed[i][1]}, {points_3d_computed[i][2]})")
+
+    print("\nDie ersten 10 Punkte in points_3d_opencv (OpenCV berechnete 3D-Koordinaten):")
+    for i in range(10):
+        print(f"Point {i} (Computed OpenCV): ({points_3d_opencv[i][0]}, {points_3d_opencv[i][1]}, {points_3d_opencv[i][2]})")
 
     # 3D-Punkte auf 2D-Punkte projizieren
-    projected_points_sample = point_projector.project(points_3d_sample)
-    projected_points_target = point_projector.project(points_3d_target)
-    projected_points_computed = point_projector.project(points_3d_computed)
+    projected_3d_opencv_calculated = point_projector.project(points_3d_opencv)
+    projected_3d_target_read = point_projector.project(points_3d_target)
+    projected_3d_computed_read = point_projector.project(points_3d_computed)
 
-    # Punkte auf dem Originalbild markieren und speichern
+    # Punkte auf dem Testbild markieren und speichern
     image_marker = ImageMarker(IN_FOLDER, OUT_FOLDER)
-    image_marker.draw_points("240500013_markings.png", projected_points_sample, projected_points_target, projected_points_computed, "drawn_points_img.png")
+    image_marker.draw_points("240500013_markings.png", projected_3d_opencv_calculated, projected_3d_target_read, projected_3d_computed_read, "drawn_points_img.png")
 
 
-    
-    # Fehlerberechnung    
-    mse_opencv = ErrorCalculator.calculate_total_mse(projected_points_sample, projected_points_target)
-    mae_opencv = ErrorCalculator.calculate_total_mae(projected_points_sample, projected_points_target)
+    # **** **** **** **** **** 
 
-    mse_java = ErrorCalculator.calculate_total_mse(projected_points_computed, projected_points_target)
-    mae_java = ErrorCalculator.calculate_total_mae(projected_points_computed, projected_points_target)
+    # Fehlerberechnungen
+    error_calculator = ErrorCalculator()
+    mae_opencv, rmse_opencv, euclidean_opencv, mae_reknow, rmse_reknow, euclidean_reknow = error_calculator.compare_algorithms(points_3d_opencv, points_3d_computed, points_3d_target)
 
-    print("OpenCV Algorithmus:")
-    print("Total MSE:", mse_opencv)
-    print("Total MAE:", mae_opencv)
 
-    print("\nJava Algorithmus:")
-    print("Total MSE:", mse_java)
-    print("Total MAE:", mae_java)
-    """"""
+    # Berechnung der Deltas
+    deltas_opencv = ErrorCalculator.calculate_deltas(points_3d_opencv, points_3d_target)
+    deltas_java = ErrorCalculator.calculate_deltas(points_3d_computed, points_3d_target)
 
-    # Test
-    sample_points_test = [(1, 1, 1), (1, 1, 1)]
-    computed_points_test = [(1, 1, 1), (1, 2, 1)]
-    target_points_test = [(1, 1, 1), (1, 1, 1)]
+    # Plotten der X-Deltas
+    ErrorCalculator.plot_x_deltas(deltas_opencv, 'X-Deltas zwischen OpenCV berechneten Punkten und Zielpunkten', 'x_deltas_opencv.png')
+    ErrorCalculator.plot_x_deltas(deltas_java, 'X-Deltas zwischen Java berechneten Punkten und Zielpunkten', 'x_deltas_java.png')
 
-    # Umwandeln der Listen in NumPy-Arrays
-    sample_points_test_np = np.array(sample_points_test)
-    computed_points_test_np = np.array(computed_points_test)
-    target_points_test_np = np.array(target_points_test)
+    # Plotten der Y-Deltas
+    ErrorCalculator.plot_y_deltas(deltas_opencv, 'Y-Deltas zwischen OpenCV berechneten Punkten und Zielpunkten', 'y_deltas_opencv.png')
+    ErrorCalculator.plot_y_deltas(deltas_java, 'Y-Deltas zwischen Java berechneten Punkten und Zielpunkten', 'y_deltas_java.png')
 
-    mse_test = ErrorCalculator.calculate_total_mse(sample_points_test_np, target_points_test_np)
-    mae_test = ErrorCalculator.calculate_total_mae(computed_points_test_np, target_points_test_np)
 
-    print(mse_test)
-    print(mae_test)
+
+    """
+    for i in range(len(target_points[:10])):
+        delta_x = target_points[i][0] - computed_points[i][0]
+        delta_y = target_points[i][1] - computed_points[i][1]
+        delta_z = target_points[i][2] - computed_points[i][2]
+
+        delta_x_opencv = target_points[i][0] - calculated_opencv_3d[i][0]
+        delta_y_opencv = target_points[i][1] - calculated_opencv_3d[i][1]
+        delta_z_opencv = target_points[i][2] - calculated_opencv_3d[i][2]
+
+        print(f"Target Point {i} (RK): {target_points[i]}")
+        print(f"Computed Point {i} (RK): {computed_points[i]}")
+        print(f"Computed Point {i} (OpenCV): {calculated_opencv_3d[i]}")
+        print(f"Delta (RK): (Delta X: {delta_x}, Delta Y: {delta_y}, Delta Z: {delta_z})")
+        print(f"Delta (OpenCV): (Delta X: {delta_x_opencv}, Delta Y: {delta_y_opencv}, Delta Z: {delta_z_opencv})")
+        print(f"***")
+
+
+        print(f"Target Point {i} (RK): {target_points[i]}")
+        print(f"Computed Point {i} (RK): {computed_points[i]}")
+        print(f"Delta (RK): (Delta X: {delta_x}, Delta Y: {delta_y}, Delta Z: {delta_z})")
+        print(f"Delta (OpenCV): (Delta X: {delta_x}, Delta Y: {delta_y}, Delta Z: {delta_z})")
+        print(f"***")
+    """
+
+    """
+    # Punkte der Realmessung
+    points = [(903, 1067), (973, 1069), (1042, 1070), (1111, 1070), (1180, 1072)]
+
+    # Berechnung der 3D-Punkte
+    calculated_projections = point_projector.get_multiple_projections(points)
+
+    # Ausgabe berechneten 3D-Koordinaten
+    for i, point in enumerate(calculated_projections):
+        print(f"3D-Koordinate für Punkt {i+1}: {point}")
+    """
 
 if __name__ == "__main__":
     main()
-
-# Entfernung: 2.600mm (2.6m)
-# => 102,5mm Entfernung für jede uvz die rauskommt
-#points = [(903, 1067), (973, 1069), (1042, 1070), (1111, 1070), (1180, 1072)]
-#multiple_points_result = get_multiple_projections(points)
