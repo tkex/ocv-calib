@@ -14,6 +14,9 @@ CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 Z = 171  # Tiefe für die Umprojektion ; 2600 für Test 2: Realmessung.
 
 class ImageProcessor:
+    """
+    Bearbeiten und Speichern von Bildern, um Bilder zu drehen, in Graustufen umwandeln und die bearbeiteten Bilder im angegebenen Ausgabeordner (imgs_edited) zu speichern.
+    """
     def __init__(self, in_folder, out_folder):
         # Initialisierung der Eingabe- und Ausgabeverzeichnisse
         self.in_folder = in_folder
@@ -44,6 +47,11 @@ class ImageProcessor:
 
 
 class CameraCalibration:
+    """
+    Führt die Kalibrierung einer Kamera durch und verwendet Bilder, um Objektpunkte (3D in der realen Welt) und Bildpunkte (2D in den Bildern) zu finden. 
+    Die Kalibrierungsergebnisse (Kameramatrix, Verzerrungskoeffizienten, Rotations- und Translationsvektoren) werden gespeichert und können geladen werden.
+    Reprojektionsfehler wird berechnet, um die Genauigkeit der Kalibrierung zu überprüfen.
+    """
     def __init__(self, out_folder, calib_file):
         self.out_folder = out_folder
         self.calib_file = calib_file
@@ -130,6 +138,10 @@ class CameraCalibration:
 
 
 class ImageUndistorter:
+    """
+    Ist für das Entzerren von Bildern verantwortlich und entfernt Verzerrungen basierend auf der Kameramatrix und den Verzerrungskoeffizienten
+    (die während der Kamera-Kalibrierung berechnet wurden) und speichert das entzerrte Bild.
+    """
     def __init__(self, in_folder, out_folder, cam_matrix, distortion_coeff):
         self.in_folder = in_folder
         self.out_folder = out_folder
@@ -162,6 +174,10 @@ class ImageUndistorter:
 
 
 class PointProjector:
+    """
+    Ist für das Laden von Punktdaten der RK Logdatei verantwortlich (2D-Pixelkoordinaten (Sample-Punkte)), die Zielkoordinaten (3D-Target-Punkte) und 3D-berechnete Punkte aus dem RK Algorithmus.
+    und in anpasst (XYZ-Konvention einhält) um für die weitere Berechnung nutzbar gemacht werden zu können.
+    """
     def __init__(self, cam_matrix, distortion_coeff):
         self.cam_matrix = cam_matrix
         self.distortion_coeff = distortion_coeff
@@ -279,6 +295,10 @@ class PointLoader:
 
 
 class ImageMarker:
+    """
+    Ist für das Zeichnen von den projizierten Punkten auf Bildern verantwortlich und nimmt die aus den 2D Pixelpunkte (Sample) und berechnete Punkte und udn den Zielkoordinaten 
+    und zeichnet diese auf das Bild.
+    """
     def __init__(self, in_folder, out_folder):
         self.in_folder = in_folder
         self.out_folder = out_folder
@@ -321,11 +341,15 @@ class ImageMarker:
 
 
 class ErrorCalculator:
-
+    """
+    Berechnung von Metriken (Fehlermaßen) zwischen berechneten und den Referenzwerten (Zielkoordinaten). 
+    MAE, RMSE, Euklidische Distanz und Differenzen (Deltas) zwischen den Punkten berechnen und teils visuell plotten.
+    """
     @staticmethod
     def calculate_deltas(computed_points, target_points):
         return np.array([np.subtract(target, computed) for target, computed in zip(target_points, computed_points)])
 
+    # MAE: Durchschnittliche absolute Differenz (MAE) zwischen den berechneten Punkten und den Zielpunkten
     @staticmethod
     def calculate_mae(deltas):
         return np.mean(np.abs(deltas), axis=0)
@@ -334,6 +358,7 @@ class ErrorCalculator:
     def calculate_total_mae(deltas):
         return np.mean(ErrorCalculator.calculate_mae(deltas))
 
+    # RMSE: Differenzen quadrieren, den Mittelwert berechnen und anschließend die Quadratwurzel ziehen
     @staticmethod
     def calculate_rmse(deltas):
         return np.sqrt(np.mean(np.square(deltas), axis=0))
@@ -342,6 +367,7 @@ class ErrorCalculator:
     def calculate_total_rmse(deltas):
         return np.mean(ErrorCalculator.calculate_rmse(deltas))
 
+    # Euklidische Distanz: Euklidische-Norm zwischen den berechneten und den Zielpunkten verwenden
     @staticmethod
     def calculate_euclidean_distance(deltas):
         return np.linalg.norm(deltas, axis=1)
@@ -350,7 +376,9 @@ class ErrorCalculator:
     def calculate_total_euclidean_distance(deltas):
         return np.mean(ErrorCalculator.calculate_euclidean_distance(deltas))
 
+    # Plotly Funktionen zwecks Plottings
     @staticmethod
+    # Visualisierung der Delta Werte in X-Richtung
     def plot_x_deltas(deltas, title, output_file):
         fig = go.Figure()
         fig.add_trace(go.Scatter(y=deltas[:, 0], mode='lines+markers', name='Delta X', line=dict(color='red')))
@@ -369,6 +397,7 @@ class ErrorCalculator:
 
     @staticmethod
     def plot_y_deltas(deltas, title, output_file):
+        # Visualisierung der Delta Werte in Y-Richtung
         fig = go.Figure()
         fig.add_trace(go.Scatter(y=deltas[:, 1], mode='lines+markers', name='Delta Y', line=dict(color='blue')))
         fig.add_shape(type="line", x0=0, y0=0, x1=len(deltas), y1=0, line=dict(color="black", width=2, dash="dash"))
@@ -449,9 +478,9 @@ def main():
     computed_points = PointLoader.get_computed_points(file_path)
 
     # Ausgabe der Punkte
-    print("RK Sample Points:", read_sample_points[:10])
-    print("RK Target Points:", target_points[:10])
-    print("RK Computed Points:", computed_points[:10])
+    print("RK Sample Punkte:", read_sample_points[:10])
+    print("RK Target Punkte:", target_points[:10])
+    print("RK Computed Punkte:", computed_points[:10])
     print("****")
 
     # Berechnung der 3D-Koordinaten (hier sample u,v Koordinaten verwenden mit statisch z = Z) aus den 2D-Punkten aus RK
@@ -495,10 +524,10 @@ def main():
 
     # **** **** **** **** **** 
 
+
     # Fehlerberechnungen
     error_calculator = ErrorCalculator()
     mae_opencv, rmse_opencv, euclidean_opencv, mae_reknow, rmse_reknow, euclidean_reknow = error_calculator.compare_algorithms(points_3d_opencv, points_3d_computed, points_3d_target)
-
 
     # Berechnung der Deltas
     deltas_opencv = ErrorCalculator.calculate_deltas(points_3d_opencv, points_3d_target)
