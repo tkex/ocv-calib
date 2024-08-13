@@ -175,8 +175,8 @@ class ImageUndistorter:
 
 class PointProjector:
     """
-    Ist für das Laden von Punktdaten der RK Logdatei verantwortlich (2D-Pixelkoordinaten (Sample-Punkte)), die Zielkoordinaten (3D-Target-Punkte) und 3D-berechnete Punkte aus dem RK Algorithmus.
-    und in anpasst (XYZ-Konvention einhält) um für die weitere Berechnung nutzbar gemacht werden zu können.
+    Ist für die Projektion von 3D-Punkten auf 2D-Bildebene sowie für die Umprojektion von 2D-Punkten zurück auf 3D-Koordinaten verantwortlich
+    (einzelne oder auch mehrere Punkte projizieren oder umprojizieren).
     """
     def __init__(self, cam_matrix, distortion_coeff):
         self.cam_matrix = cam_matrix
@@ -218,6 +218,10 @@ class PointProjector:
 
 
 class PointLoader:
+    """
+    Ist für das Laden von Punktdaten der RK Logdatei verantwortlich (2D-Pixelkoordinaten (Sample-Punkte)), die Zielkoordinaten (3D-Target-Punkte) und 3D-berechnete Punkte aus dem RK Algorithmus.
+    und in anpasst (XYZ-Konvention einhält) um für die weitere Berechnung nutzbar gemacht werden zu können.
+    """
     @staticmethod
     def get_sample_points(file_path):
         with open(file_path, 'r') as file:
