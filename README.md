@@ -20,7 +20,7 @@ This project provides tools for camera calibration, image processing, and 3D poi
 
 ## Example for Undistortion
 
-An example of barrel distortion (from the camera lens) corrected to an undistorted image using the calibrated OpenCV algorithm
+An example of barrel distortion (from the camera lens) corrected to an undistorted image using the calibrated OpenCV algorithm.
 
 <p float="left">
   <img src="https://github.com/tkex/ocv-calib/blob/main/imgs/240500013_markings.png" alt="Original Image" width="45%" />
