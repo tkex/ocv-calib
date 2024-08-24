@@ -45,7 +45,7 @@ This project provides tools for camera calibration, image processing, and 3D poi
     
 ```bash
 pip install opencv-python numpy plotly
-
+```
 
 ## Running the Project
 
@@ -53,3 +53,4 @@ To run the project, simply execute the `main()` function.
 
 ```bash
 python ocv-calib.py
+```
