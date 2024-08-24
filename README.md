@@ -18,6 +18,17 @@ This project provides tools for camera calibration, image processing, and 3D poi
 - **3D Point Projection:** Project 3D points to 2D coordinates and back (using the cameras intrinsic parameters).
 - **Error Analysis:** Compare and visualize the accuracy of computed 3D points against reference targets.
 
+## Example for Undistortion
+
+An example of barrel distortion (from the camera lens) corrected to an undistorted image using the calibrated OpenCV algorithm
+
+<p float="left">
+  <img src="https://github.com/tkex/ocv-calib/blob/main/imgs/240500013_markings.png" alt="Original Image" width="45%" />
+  <img src="https://github.com/tkex/ocv-calib/blob/main/imgs_edited/undistorted_img.png" alt="Undistorted Image" width="45%" />
+</p>
+
+Take a look at the image `drawn_points_img.png` in the  `imgs_edited` folder as well to get an idea of the calculated and precise mapped OpenCV computed points.
+
 ## How to Use
 
 1. **Prepare your images:**
